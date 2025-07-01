@@ -38,22 +38,31 @@ docker run --rm -it --entrypoint /bin/sh  --platform=linux/arm64  ghcr.io/graalv
 ```
 
 ```shell
-git clone https://github.com/pandas-dev/pandas.git
-cd pandas
-git checkout tags/v2.2.3 -b v2.2.3-branch        
-python3 -m venv build-env   
- source build-env/bin/activate  
-pip install --upgrade pip    
- pip install build setuptools wheel delocate 
-python -m build     
- delocate-wheel dist/*.whl    
-```
-
-```shell
 docker build --target builder -t graalpy-pandas .
 docker create --name graalpy-pandas-container graalpy-pandas
 docker cp graalpy-pandas-container:/resources ./dist
 docker rm graalpy-pandas-container
+```
+
+
+```shell
+git clone https://github.com/pandas-dev/pandas.git
+
+cd pandas
+
+git checkout tags/v2.2.3 -b v2.2.3-branch        
+
+python3 -m venv build-env   
+
+source build-env/bin/activate  
+
+pip install --upgrade pip    
+
+pip install build setuptools wheel delocate 
+
+python -m build     
+
+delocate-wheel dist/*.whl    
 ```
 
 
