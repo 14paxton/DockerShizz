@@ -1,0 +1,57 @@
+FROM graalpy-base-image AS builder
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        ca-certificates \
+        build-essential \
+        ninja-build \
+        pkg-config \
+        patchelf \
+        python3-pip \
+        zlib1g-dev \
+        libjpeg-dev \
+        libpng-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+# Define ARGs for git clone so they can be used with --build-arg for caching
+ARG REPO_URL=https://github.com/python-pillow/Pillow.git
+ARG REPO_DIR=/src/pillow
+
+# Use buildkit's --mount=type=cache to persist git clone objects across builds
+RUN --mount=type=cache,target=/root/.cache/git \
+    git clone --depth=1 ${REPO_URL} ${REPO_DIR}
+
+WORKDIR /src/pillow
+
+# Set up venv and install build tools
+# Set up venv and install build tools and Pillow
+RUN graalpy -m venv /build-env && \
+    /build-env/bin/graalpy -m pip install --upgrade pip && \
+    /build-env/bin/graalpy -m pip install build setuptools wheel auditwheel
+
+# Build the wheel (skip sdist)
+RUN /build-env/bin/graalpy -m build --wheel
+
+# Repair the wheel for Linux aarch64
+RUN /build-env/bin/auditwheel repair dist/*.whl -w dist/
+
+# Copy OS release info to dist folder for traceability
+RUN cp /etc/os-release dist/os-release
+
+# Copy all wheel files and distro info to /wheels for easy volume mounting or docker cp
+RUN mkdir -p /pillow-linux-arch-wheels && \
+    cp dist/*.whl /pillow-linux-arch-wheels/ && \
+    cp dist/os-release /pillow-linux-arch-wheels/ || true
+
+CMD ["ls", "-l", "/wheels"]
+
+# docker run --rm -it --entrypoint /bin/sh  --platform=linux/arm64  graalpy-base-image
+
+#  docker build --target builder -t graalpy-linux-arch-wheels -f Dockerfile.create-graalpy-build-linux-arch-wheels .
+#  docker create --name graalpy-linux-arch-wheels graalpy-linux-arch-wheels
+#  docker cp graalpy-linux-arch-wheels:/pillow-linux-arch-wheels ./wheels
+#  docker rm graalpy-linux-arch-wheels
+
+# docker create --name graalpy-linux-arch-wheels graalpy-linux-arch-wheels &&  docker cp graalpy-linux-arch-wheels:/pillow-linux-arch-wheels ./wheels && docker rm graalpy-linux-arch-wheels

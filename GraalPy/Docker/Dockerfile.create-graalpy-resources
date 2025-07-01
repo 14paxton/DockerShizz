@@ -1,0 +1,64 @@
+#  ca-certificates: Installs trusted SSL root certificates, enabling secure HTTPS connections.
+#  build-essential: Provides core compilation tools (GCC, g++, make, etc.) needed to build C/C++ software.
+#  ninja-build: A fast build system used as an alternative to make, often required by modern Python packages.
+#  pkg-config: Helps configure build processes by providing metadata for installed libraries.
+#  python3-pip: Installs the Python package manager for Python 3, used to install Python packages.
+#  patchelf: A utility to modify ELF binaries, often used to adjust shared library paths in built wheels.
+# zlib1g-dev: Development files for the zlib compression library, required for building software that uses zlib (e.g., for reading/writing compressed files).
+# libjpeg-dev: Development files for the JPEG image library, needed to build software that processes JPEG images.
+# libpng-dev: Development files for the PNG image library, required for building software that handles PNG images.
+# Install dependencies
+FROM graalpy-base-image AS builder
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        ca-certificates \
+        build-essential \
+        ninja-build \
+        pkg-config \
+        patchelf \
+        python3-pip \
+        zlib1g-dev \
+        libjpeg-dev \
+        libpng-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src/resources
+
+COPY --link pyproject.toml /src/resources/
+
+# Set up venv and install build tools and Pillow
+RUN graalpy -m venv /build-env && \
+    /build-env/bin/graalpy -m pip install --upgrade pip && \
+    /build-env/bin/graalpy -m pip install build setuptools wheel auditwheel Pillow
+
+# Build the wheel (skip sdist)
+RUN /build-env/bin/graalpy -m build --wheel
+
+# Repair the wheel for Linux aarch64
+RUN for whl in dist/*.whl; do \
+      if [[ "$whl" == *linux_* ]]; then \
+        /build-env/bin/auditwheel repair "$whl" -w dist/; \
+      else \
+        echo "Skipping auditwheel for pure Python wheel: $whl"; \
+      fi \
+    done
+
+# Copy OS release info to dist folder for traceability
+RUN cp /etc/os-release dist/os-release
+
+# Copy all wheel files and distro info to /wheels for easy volume mounting or docker cp
+RUN mkdir -p /wheels && \
+    cp dist/*.whl /wheels/ && \
+    cp dist/os-release /wheels/ || true
+
+CMD ["ls", "-l", "/wheels"]
+
+# docker run --rm -it --entrypoint /bin/sh  --platform=linux/arm64  graalpy-base-image
+
+#  docker build --target builder -t graalpy-venv-resources -f Dockerfile.create-graalpy-resources .
+#  docker create --name graalpy-venv-resource graalpy-venv-resources
+#  docker cp graalpy-venv-resource:/wheels ./dist
+#  docker rm graalpy-venv-resource
