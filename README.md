@@ -34,7 +34,7 @@ docker run --rm -it --entrypoint /bin/sh  --platform=linux/arm64 ghcr.io/graalvm
 ```
 
 ```shell
-docker run --rm -it --entrypoint /bin/sh  --platform=linux/arm64  ghcr.io/graalvm/graalpy-community
+docker run --rm -it --entrypoint /bin/sh  ghcr.io/graalvm/graalpy-community
 ```
 
 ```shell
@@ -46,7 +46,7 @@ docker rm graalpy-pandas-container
 
 
 ```shell
-git clone https://github.com/pandas-dev/pandas.git
+git clone https://github.com/PaddlePaddle/Paddle.git
 
 cd pandas
 

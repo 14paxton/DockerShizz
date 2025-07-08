@@ -1,0 +1,26 @@
+# From ghcr.io/graalvm/graalpy-community:24 AS Builder
+
+# WORKDIR /app/graalenv/bin
+
+FROM --platform=linux/arm64 ubuntu:22.04 AS Builder
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y \
+        curl \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set GraalPy version
+ENV GRAALPY_VERSION=24.2.1
+
+# Download and extract GraalPy
+RUN curl -L -o graalpy.tar.gz https://github.com/oracle/graalpython/releases/download/graal-${GRAALPY_VERSION}/graalpy-${GRAALPY_VERSION}-linux-aarch64.tar.gz && \
+    mkdir /opt/graalpy && \
+    tar -xzf graalpy.tar.gz -C /opt/graalpy --strip-components=1 && \
+    rm graalpy.tar.gz
+
+# Add GraalPy to PATH
+ENV PATH="/opt/graalpy/bin:$PATH"
+
+CMD ["python"]
